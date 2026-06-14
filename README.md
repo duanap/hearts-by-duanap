@@ -40,9 +40,7 @@ hearts-by-duanap/
 │   ├── server/
 │   │   ├── config.js            # 环境配置
 │   │   ├── staticFiles.js       # HTTP 静态文件服务器
-│   │   ├── realtimeGame.js      # 全部游戏逻辑（~1960行）
-│   │   ├── aiLearning.js        # AI 自学习模块（~480行）
-│   │   └── logger.js            # 日志模块
+│   │   └── realtimeGame.js      # 全部游戏逻辑（~2000行）
 │   └── shared/
 │       └── constants.js         # 共享常量（SUITS、昵称等）
 ├── public/
@@ -52,7 +50,8 @@ hearts-by-duanap/
 │   ├── sw.js                    # Service Worker
 │   ├── manifest.webmanifest     # PWA 清单
 │   ├── icons/                   # 应用图标
-│   └── www/                     # 项目官网
+│   ├── audio/                   # 音效资源
+│   └── table-bg.webp            # 牌桌背景图
 ├── AGENTS.md                    # 代理开发指南
 ├── LICENSE                      # MIT 许可证
 └── README.md
