@@ -1,0 +1,13 @@
+{
+  "name": "hearts-online-animal-island",
+  "version": "1.4.17",
+  "description": "红心大战联机版：4位易记房间号、离线提示、房间超时自动解散",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check src/server/config.js && node --check src/server/staticFiles.js && node --check src/server/realtimeGame.js && node --check public/js/app.js && node --check public/sw.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
