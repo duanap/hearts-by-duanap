@@ -1633,10 +1633,10 @@ function normalizeNickname(name) {
 
 function replaceTakeoverBotWithHuman(ws, room, botIndex, clientId, nickname) {
   const player = room.players[botIndex];
-  if (!player || !player.isBot || !player.takeoverFromName) return false;
+  if (!player || !player.isBot) return false;
   const oldBotId = player.id;
   player.id = clientId;
-  player.name = player.takeoverFromName || nickname || '玩家';
+  player.name = player.takeoverFromName || nickname || player.name || '玩家';
   player.avatar = player.takeoverFromAvatar || pickHumanAvatar(room);
   if (player.disconnectGraceTimer) clearTimeout(player.disconnectGraceTimer);
   player.disconnectGraceTimer = null;
@@ -1682,7 +1682,11 @@ function handleMessage(ws, msg) {
         attachSocketToPlayer(ws, room, index);
         addLog(room, `${room.players[index].name} 已重新连接。`);
         broadcast(room);
+      } else {
+        send(ws, { type: 'state', roomId: '', phase: 'offline', players: [], trick: [], log: [] });
       }
+    } else {
+      send(ws, { type: 'state', roomId: '', phase: 'offline', players: [], trick: [], log: [] });
     }
     return;
   }
@@ -1732,20 +1736,26 @@ function handleMessage(ws, msg) {
       player.takeoverFromName &&
       normalizeNickname(player.takeoverFromName) === nickname
     );
-    if (takeoverIndex >= 0) {
+    const pureBotIndex = takeoverIndex >= 0 ? takeoverIndex : room.players.findIndex(player =>
+      player.isBot &&
+      !player.takeoverFromName &&
+      normalizeNickname(player.name) === nickname
+    );
+    const matchedBotIndex = takeoverIndex >= 0 ? takeoverIndex : pureBotIndex;
+    if (matchedBotIndex >= 0) {
       room.pendingTakeover = {
         clientId,
         nickname,
-        botIndex: takeoverIndex,
-        botName: room.players[takeoverIndex].name,
+        botIndex: matchedBotIndex,
+        botName: room.players[matchedBotIndex].name,
         requestedAt: Date.now()
       };
-      send(ws, { type: 'takeoverRequested', roomId: room.id, botName: room.players[takeoverIndex].name });
+      send(ws, { type: 'takeoverRequested', roomId: room.id, botName: room.players[matchedBotIndex].name });
       const hostWs = room.players.find(p => p.id === room.hostId)?.ws;
       if (hostWs) {
-        send(hostWs, { type: 'takeoverApprovalNeeded', roomId: room.id, nickname, botName: room.players[takeoverIndex].name, botIndex: takeoverIndex });
+        send(hostWs, { type: 'takeoverApprovalNeeded', roomId: room.id, nickname, botName: room.players[matchedBotIndex].name, botIndex: matchedBotIndex });
       }
-      addLog(room, `${nickname} 请求接管 AI「${room.players[takeoverIndex].name}」的牌局，等待房主批准。`);
+      addLog(room, `${nickname} 请求接管 AI「${room.players[matchedBotIndex].name}」的牌局，等待房主批准。`);
       broadcast(room);
       return;
     }

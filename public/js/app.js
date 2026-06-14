@@ -8,7 +8,7 @@
 
     const PASS_NAMES = ["向左传牌", "向右传牌", "对家传牌", "不传牌"];
     const PASS_HINTS = ["选择 3 张牌传给左边。", "选择 3 张牌传给右边。", "选择 3 张牌传给对家。", "本局不传牌。"];
-    const APP_VERSION = "v1.4.19";
+    const APP_VERSION = "v1.4.20";
     const STORED_VERSION = localStorage.getItem("hearts-online-app-version");
     if (STORED_VERSION && STORED_VERSION !== APP_VERSION) {
       localStorage.removeItem("hearts-online-app-version");
@@ -75,7 +75,14 @@
     ];
 
     const VERSION_LOGS = [
-      { version: "v1.4.19（当前版本）", items: [
+      { version: "v1.4.20（当前版本）", items: [
+        "修复首页卡死：stale roomId + 服务端无响应导致页面卡在空白牌桌",
+        "AI接管支持纯AI座位：新玩家输入AI名字+房间号可接管任意AI",
+        "互动目标菜单动态加载全部道具",
+        "首出牌闪烁描边：轮到你出牌时首出牌高亮脉冲提示",
+        "上一墩首出标签移至玩家昵称旁，赢家同时显示方位+分数"
+      ]},
+      { version: "v1.4.19", items: [
         "Bug修复、AI策略优化、互动系统升级",
         "牌桌首出提示：首出牌面显示金色标签",
         "接管审批：玩家接管AI座位需房主批准",
@@ -476,10 +483,16 @@
     function applyServerState(msg) {
       const oldPhase = state.phase;
       state.connected = true;
-      state.roomId = msg.roomId || state.roomId;
+      const prevRoomId = state.roomId;
+      state.roomId = msg.roomId != null ? msg.roomId : state.roomId;
       if (state.roomId) {
         localStorage.setItem(ROOM_ID_KEY, state.roomId);
         setRoomPanelMode("status");
+      } else if (prevRoomId && msg.roomId === '') {
+        localStorage.removeItem(ROOM_ID_KEY);
+        state.roomPanelMode = "choice";
+        setRoomPanelMode("choice");
+        setTimeout(() => openRoomModal("choice"), 100);
       }
       state.yourIndex = Number.isInteger(msg.yourIndex) ? msg.yourIndex : 0;
       state.hostId = msg.hostId || "";
@@ -1238,12 +1251,10 @@
       if (state.interactionMenuMode === "quick") {
         el.interactionTargetMenu.innerHTML = renderQuickEmojiMenuButtons();
       } else if (state.interactionMenuMode === "target") {
-        el.interactionTargetMenu.innerHTML = `
-        ${targetMenuButtonHtml("applause", "👏", "鼓掌")}
-        ${targetMenuButtonHtml("flower", "🌹", "送花")}
-        ${targetMenuButtonHtml("tomato", "🍅", state.allowTomato ? "番茄" : "番茄已关", !state.allowTomato)}
-        ${targetMenuButtonHtml("like", "💙", "点赞")}
-      `;
+        el.interactionTargetMenu.innerHTML = INTERACTION_TOOLS.map(item => {
+          const disabled = item.kind === "tomato" && !state.allowTomato;
+          return targetMenuButtonHtml(item.kind, item.icon, item.kind === "tomato" && !state.allowTomato ? "番茄已关" : item.label, disabled);
+        }).join("");
       }
     }
 
@@ -2207,9 +2218,11 @@
       el.trickArea.classList.toggle("judging", state.comparingTrick && state.trick.length === 4);
       el.trickArea.classList.toggle("collecting", state.collectingTrick && state.trick.length === 4);
 
+      const leadPlayer = state.trick.length >= 1 ? state.trick[0]?.player : null;
+      const showLeadGlow = state.phase === "play" && state.currentPlayer === 0 && !state.busy && leadPlayer != null && state.trick.length < 4 && !state.comparingTrick && !state.collectingTrick;
       for (let i = 0; i < el.slots.length; i++) {
         const slot = el.slots[i];
-        slot.classList.remove("compare-candidate", "compare-winner", "compare-loser", "new-card");
+        slot.classList.remove("compare-candidate", "compare-winner", "compare-loser", "new-card", "lead-glow");
         slot.style.setProperty("--play-x", i === 1 ? "-190px" : i === 3 ? "190px" : "0px");
         slot.style.setProperty("--play-y", i === 0 ? "180px" : i === 2 ? "-180px" : "0px");
         const play = state.trick.find(item => item.player === i);
@@ -2230,6 +2243,9 @@
         }
         if (state.comparingTrick && state.trick.length === 4) {
           if (play.player === state.trickWinnerPlayer) slot.classList.add("compare-winner");
+        }
+        if (showLeadGlow && i === leadPlayer) {
+          slot.classList.add("lead-glow");
         }
       }
 
@@ -2358,18 +2374,20 @@
       el.passCounter.textContent = "";
       el.centerBtn.style.display = "inline-block";
       el.centerBtn.disabled = false;
-      if (el.viewRoundTableBtn) {
-        const canViewTable = Boolean(state.roundTable && ["roundEnd", "gameEnd"].includes(state.phase));
-        el.viewRoundTableBtn.classList.toggle("hidden", !canViewTable);
-        el.viewRoundTableBtn.style.setProperty("--screen-rot", isForcedLandscapeFlightMode() ? "90deg" : "0deg");
-      }
-      if (el.lastTrickBtn) {
-        const canViewLast = Boolean(state.lastTrick && state.lastTrick.cards?.length && state.phase === "play" && state.currentPlayer === 0 && !state.busy && !state.comparingTrick && !state.collectingTrick);
-        el.lastTrickBtn.classList.toggle("hidden", !canViewLast);
-        el.lastTrickBtn.style.setProperty("--screen-rot", isForcedLandscapeFlightMode() ? "90deg" : "0deg");
-        if (!canViewLast) closeLastTrickPopover();
-      }
-      positionTableActionButtons();
+      try {
+        if (el.viewRoundTableBtn) {
+          const canViewTable = Boolean(state.roundTable && ["roundEnd", "gameEnd"].includes(state.phase));
+          el.viewRoundTableBtn.classList.toggle("hidden", !canViewTable);
+          el.viewRoundTableBtn.style.setProperty("--screen-rot", isForcedLandscapeFlightMode() ? "90deg" : "0deg");
+        }
+        if (el.lastTrickBtn) {
+          const canViewLast = Boolean(state.lastTrick && state.lastTrick.cards?.length && state.phase === "play" && state.currentPlayer === 0 && !state.busy && !state.comparingTrick && !state.collectingTrick);
+          el.lastTrickBtn.classList.toggle("hidden", !canViewLast);
+          el.lastTrickBtn.style.setProperty("--screen-rot", isForcedLandscapeFlightMode() ? "90deg" : "0deg");
+          if (!canViewLast) closeLastTrickPopover();
+        }
+        positionTableActionButtons();
+      } catch (_) {}
 
       if (!state.connected) {
         el.message.textContent = "正在连接联机服务端……";
@@ -2548,12 +2566,17 @@
       el.lastTrickPopover.innerHTML = `
         <div class="last-trick-title"><span>上一墩</span><button class="last-trick-close" type="button" data-close-last-trick>×</button></div>
         <div class="last-trick-grid">
-          ${orderedCards.map(play => `<div class="last-trick-cell ${play.player === last.winnerPlayer ? "is-winner" : ""} ${play.player === last.leaderPlayer ? "is-leader" : ""}">
-            <div class="last-trick-name">${escapeHTML(state.players[play.player]?.name || "?")}</div>
-            ${lastTrickMiniCardHTML(play.card)}
-            <div class="last-trick-meta">${play.player === last.winnerPlayer ? `${points}分` : relationLabelForView(play.player)}</div>
-            ${play.player === last.leaderPlayer ? `<div class="last-trick-lead-badge">首出</div>` : ""}
-          </div>`).join("")}
+          ${orderedCards.map(play => {
+            const isLeader = play.player === last.leaderPlayer;
+            const isWinner = play.player === last.winnerPlayer;
+            const relation = relationLabelForView(play.player);
+            const meta = isWinner ? `${relation} · ${points}分` : relation;
+            return `<div class="last-trick-cell ${isWinner ? "is-winner" : ""} ${isLeader ? "is-leader" : ""}">
+              <div class="last-trick-name">${escapeHTML(state.players[play.player]?.name || "?")}${isLeader ? `<span class="last-trick-lead-badge">首出</span>` : ""}</div>
+              <div class="last-trick-card-row">${lastTrickMiniCardHTML(play.card)}</div>
+              <div class="last-trick-meta">${escapeHTML(meta)}</div>
+            </div>`;
+          }).join("")}
         </div>
         <div class="last-trick-summary">${escapeHTML(winnerName)} 收墩 · ${points} 分</div>
       `;

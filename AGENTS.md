@@ -23,10 +23,10 @@ No lint, no typecheck, no test framework. `npm run check` runs `node --check` on
 server.js                    → entry point, wires config + static server + game
 src/server/config.js         → PORT, PUBLIC_DIR
 src/server/staticFiles.js    → plain HTTP file server (no Express)
-src/server/realtimeGame.js   → all game logic, WebSocket handler (~1900 lines)
+src/server/realtimeGame.js   → all game logic, WebSocket handler (~2000 lines)
 src/shared/constants.js      → SUITS, RANKS, PASS_NAMES, nicknames, avatars
-public/js/app.js             → entire client (~3300 lines, single file)
-public/css/app.css           → all styles (~6600 lines, single file)
+public/js/app.js             → entire client (~3250 lines, single file)
+public/css/app.css           → all styles (~6700 lines, single file)
 public/sw.js                 → PWA service worker (cache-first strategy)
 public/index.html            → single HTML page
 ```

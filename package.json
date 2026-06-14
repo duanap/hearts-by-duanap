@@ -1,6 +1,6 @@
 {
   "name": "hearts-online-animal-island",
-  "version": "1.4.17",
+  "version": "1.4.20",
   "description": "红心大战联机版：4位易记房间号、离线提示、房间超时自动解散",
   "main": "server.js",
   "scripts": {

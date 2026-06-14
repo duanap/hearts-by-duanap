@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hearts-online-v1.4.17-modular';
+const CACHE_NAME = 'hearts-online-v1.4.20';
 const APP_SHELL = [
   '/',
   '/index.html',
