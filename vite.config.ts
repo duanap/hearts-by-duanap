@@ -39,7 +39,10 @@ export default defineConfig({
     }
   },
   root: '.',
-  publicDir: 'public',
+  publicDir: {
+    directory: 'public',
+    exclude: ['js/**', 'css/**', 'sw.js', 'manifest.webmanifest']
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

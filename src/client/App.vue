@@ -41,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, provide, watch } from 'vue'
+import { ref, computed, onMounted, provide, watch, defineAsyncComponent } from 'vue'
 import { useGameStore } from './stores/game'
 import { useRoomStore } from './stores/room'
 import { useSettingsStore } from './stores/settings'
@@ -49,13 +49,15 @@ import { useWebSocket } from './composables/useWebSocket'
 import { useAudio } from './composables/useAudio'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import GameTable from './components/GameTable.vue'
-import RoomModal from './components/RoomModal.vue'
-import SettingsModal from './components/SettingsModal.vue'
-import InteractionPanel from './components/InteractionPanel.vue'
-import LastTrickPopover from './components/LastTrickPopover.vue'
-import RoundTable from './components/RoundTable.vue'
-import SpecialEvent from './components/SpecialEvent.vue'
-import ResultModal from './components/ResultModal.vue'
+
+// Dynamic imports for code splitting - modals load on demand
+const RoomModal = defineAsyncComponent(() => import('./components/RoomModal.vue'))
+const SettingsModal = defineAsyncComponent(() => import('./components/SettingsModal.vue'))
+const InteractionPanel = defineAsyncComponent(() => import('./components/InteractionPanel.vue'))
+const LastTrickPopover = defineAsyncComponent(() => import('./components/LastTrickPopover.vue'))
+const RoundTable = defineAsyncComponent(() => import('./components/RoundTable.vue'))
+const SpecialEvent = defineAsyncComponent(() => import('./components/SpecialEvent.vue'))
+const ResultModal = defineAsyncComponent(() => import('./components/ResultModal.vue'))
 import type { SpecialEvent as SpecialEventType } from './types'
 
 const game = useGameStore()
