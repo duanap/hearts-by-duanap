@@ -397,8 +397,44 @@
     }
 
     let wsFailCount = 0;
+    let wsConnecting = false;
+    let helloResponseTimer = null;
+
+    function fallbackToLobby(reason) {
+      state.connected = false;
+      state.roomId = "";
+      state.phase = "offline";
+      state.busy = false;
+      state.comparingTrick = false;
+      state.collectingTrick = false;
+      state.trickWinnerPlayer = null;
+      state.judgeText = "";
+      state.trick = [];
+      state.lastTrick = null;
+      state.specialEvents = [];
+      state.interactions = [];
+      state.passFlow = null;
+      state.roundTable = null;
+      state.gameOver = false;
+      state.moonShooter = null;
+      state.legalCardIds = new Set();
+      state.youPassed = false;
+      state.selectedPass.clear();
+      state.passingCardIds.clear();
+      state.passSending = false;
+      state.lastRenderedTrickKeys = ["", "", "", ""];
+      state.players = createPlaceholderPlayers();
+      localStorage.removeItem(ROOM_ID_KEY);
+      render();
+      updateRoomPanel();
+      openRoomModal("choice");
+      if (reason) showActionToast(reason);
+    }
+
     function connectSocket() {
       if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) return;
+      if (wsConnecting) return;
+      wsConnecting = true;
       const protocol = location.protocol === "https:" ? "wss" : "ws";
       socket = new WebSocket(`${protocol}://${location.host}/ws`);
 
@@ -406,15 +442,24 @@
         state.connected = true;
         state.lastConnectionNoticeText = "";
         wsFailCount = 0;
+        wsConnecting = false;
         sendMsg({ type: "hello", roomId: state.roomId });
         renderCenter();
         updateRoomPanel();
         updateConnectionNotice();
+        clearTimeout(helloResponseTimer);
+        helloResponseTimer = setTimeout(() => {
+          if (state.phase === "offline" && state.roomId) {
+            fallbackToLobby("连接超时，房间信息已重置。");
+          }
+        }, 5000);
       });
 
       socket.addEventListener("message", event => {
         let msg;
         try { msg = JSON.parse(event.data); } catch { return; }
+
+        clearTimeout(helloResponseTimer);
 
         if (msg.type === "state") applyServerState(msg);
         else if (msg.type === "roomCreated") {
@@ -450,19 +495,17 @@
 
       socket.addEventListener("close", () => {
         state.connected = false;
+        wsConnecting = false;
+        clearTimeout(helloResponseTimer);
         wsFailCount += 1;
         renderCenter();
         updateRoomPanel();
         updateConnectionNotice();
-        if (wsFailCount >= 3 && state.roomId) {
-          state.roomId = "";
-          localStorage.removeItem(ROOM_ID_KEY);
-          renderCenter();
-          openRoomModal("choice");
-          showActionToast("无法连接服务端，房间信息已清除。请检查网络后重新加入。");
+        if (wsFailCount >= 2 && state.roomId) {
+          fallbackToLobby("无法连接服务端，房间信息已重置。");
         }
         clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connectSocket, 1200);
+        reconnectTimer = setTimeout(connectSocket, Math.min(1200 * wsFailCount, 8000));
       });
 
       socket.addEventListener("error", () => {
@@ -475,7 +518,8 @@
 
     function sendMsg(data) {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
-        showActionToast("尚未连接服务端，请确认通过 npm start 打开页面。");
+        showActionToast("连接已断开，正在重连……");
+        connectSocket();
         return false;
       }
       socket.send(JSON.stringify({ ...data, clientId }));
@@ -3253,15 +3297,32 @@
     if (el.roomIdInput && state.roomId) el.roomIdInput.value = state.roomId;
     document.body.classList.toggle("force-landscape", state.forceLandscape);
     updateThemeAndSoundButtons();
-    render();
+    try { render(); } catch (e) {
+      console.error("初始渲染失败:", e);
+      fallbackToLobby("页面初始化异常，已重置。");
+    }
     updateRoomPanel();
     connectSocket();
     if (!state.roomId) setTimeout(() => openRoomModal("choice"), 260);
     setTimeout(() => maybeShowLandscapePrompt(), 900);
 
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        if (!state.connected) connectSocket();
+      }
+    });
+
     if ("serviceWorker" in navigator && window.isSecureContext) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch(error => {
+        navigator.serviceWorker.register("/sw.js").then(reg => {
+          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+          reg.addEventListener("updatefound", () => {
+            const newSw = reg.installing;
+            if (newSw) newSw.addEventListener("statechange", () => {
+              if (newSw.state === "activated") location.reload();
+            });
+          });
+        }).catch(error => {
           console.warn("PWA service worker 注册失败：", error);
         });
       });
