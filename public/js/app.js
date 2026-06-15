@@ -396,6 +396,7 @@
       }));
     }
 
+    let wsFailCount = 0;
     function connectSocket() {
       if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) return;
       const protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -404,6 +405,7 @@
       socket.addEventListener("open", () => {
         state.connected = true;
         state.lastConnectionNoticeText = "";
+        wsFailCount = 0;
         sendMsg({ type: "hello", roomId: state.roomId });
         renderCenter();
         updateRoomPanel();
@@ -448,15 +450,24 @@
 
       socket.addEventListener("close", () => {
         state.connected = false;
+        wsFailCount += 1;
         renderCenter();
         updateRoomPanel();
         updateConnectionNotice();
+        if (wsFailCount >= 3 && state.roomId) {
+          state.roomId = "";
+          localStorage.removeItem(ROOM_ID_KEY);
+          renderCenter();
+          openRoomModal("choice");
+          showActionToast("无法连接服务端，房间信息已清除。请检查网络后重新加入。");
+        }
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(connectSocket, 1200);
       });
 
       socket.addEventListener("error", () => {
         state.connected = false;
+        renderCenter();
         updateRoomPanel();
         updateConnectionNotice();
       });
