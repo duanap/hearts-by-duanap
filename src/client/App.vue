@@ -21,6 +21,8 @@
     </transition>
 
     <!-- Modals -->
+    <ToastContainer />
+    <InteractionEffects />
     <RoomModal :show="showRoomModal" :initialMode="roomModalMode" :roomId="room.roomId"
       :players="roomPlayers" :isHost="room.isHost"
       @close="showRoomModal = false"
@@ -48,7 +50,10 @@ import { useSettingsStore } from './stores/settings'
 import { useWebSocket } from './composables/useWebSocket'
 import { useAudio } from './composables/useAudio'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
+import { useToast } from './composables/useToast'
 import GameTable from './components/GameTable.vue'
+import ToastContainer from './components/ToastContainer.vue'
+import InteractionEffects from './components/InteractionEffects.vue'
 
 // Dynamic imports for code splitting - modals load on demand
 const RoomModal = defineAsyncComponent(() => import('./components/RoomModal.vue'))
@@ -65,10 +70,12 @@ const room = useRoomStore()
 const settings = useSettingsStore()
 const ws = useWebSocket()
 const audio = useAudio()
+const toast = useToast()
 
 // Provide send function to child components
 provide('wsSend', ws.send)
 provide('audio', audio)
+provide('toast', toast)
 
 const showRoomModal = ref(false)
 const showSettingsModal = ref(false)
