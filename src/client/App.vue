@@ -47,6 +47,7 @@ import { useRoomStore } from './stores/room'
 import { useSettingsStore } from './stores/settings'
 import { useWebSocket } from './composables/useWebSocket'
 import { useAudio } from './composables/useAudio'
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import GameTable from './components/GameTable.vue'
 import RoomModal from './components/RoomModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -154,6 +155,15 @@ onMounted(() => {
   if (!room.hasRoom) {
     setTimeout(() => { showRoomModal.value = true }, 260)
   }
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onPlayCard: (cardId) => onPlayCard(cardId),
+    onPassCards: (cardIds) => onPassCards(cardIds),
+    onCenterAction: () => onCenterAction(),
+    onToggleLastTrick: () => { showLastTrick.value = !showLastTrick.value },
+    onToggleRoundTable: () => { showRoundTable.value = !showRoundTable.value }
+  })
 })
 </script>
 
