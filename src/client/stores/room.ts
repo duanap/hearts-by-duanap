@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { ServerState } from '../types'
 
 export const useRoomStore = defineStore('room', () => {
   const roomId = ref(localStorage.getItem('hearts-online-room-id') || '')
@@ -27,7 +28,7 @@ export const useRoomStore = defineStore('room', () => {
     localStorage.removeItem('hearts-online-room-id')
   }
 
-  function applyServerState(msg: any) {
+  function applyServerState(msg: ServerState) {
     roomId.value = msg.roomId || ''
     hostId.value = msg.hostId || ''
     isHost.value = Boolean(msg.isHost)

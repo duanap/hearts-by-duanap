@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game'
 import { useSettingsStore } from '../stores/settings'
 import { useAudio } from './useAudio'
+import type { ClientMessage } from '../types'
 
 export function useInteraction() {
   const game = useGameStore()
@@ -42,7 +43,7 @@ export function useInteraction() {
     cooldowns.value[kind] = Date.now() + ms
   }
 
-  function sendEmoji(item: typeof EMOJIS[0], sendFn: (data: any) => boolean) {
+  function sendEmoji(item: typeof EMOJIS[0], sendFn: (data: ClientMessage) => boolean) {
     if (cooldownRemaining(item.kind)) return
     sendFn({
       type: 'interaction',
@@ -52,7 +53,7 @@ export function useInteraction() {
     audio.playInteractionSound(item.kind)
   }
 
-  function sendTool(item: typeof TOOLS[0], sendFn: (data: any) => boolean) {
+  function sendTool(item: typeof TOOLS[0], sendFn: (data: ClientMessage) => boolean) {
     if (cooldownRemaining(item.kind)) return
     if (item.kind === 'tomato' && !settings.allowTomato) return
     sendFn({

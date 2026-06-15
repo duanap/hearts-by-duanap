@@ -51,6 +51,7 @@ import { inject } from 'vue'
 import { useGameStore } from '../stores/game'
 import { useSettingsStore } from '../stores/settings'
 import { useInteraction } from '../composables/useInteraction'
+import type { ClientMessage } from '../types'
 
 defineProps<{ show: boolean }>()
 defineEmits<{ close: [] }>()
@@ -58,9 +59,9 @@ defineEmits<{ close: [] }>()
 const game = useGameStore()
 const settings = useSettingsStore()
 const interaction = useInteraction()
-const sendFn = inject<(data: any) => boolean>('wsSend', () => false)
+const sendFn = inject<(data: ClientMessage) => boolean>('wsSend', () => false)
 
-function sendToWs(data: any) {
+function sendToWs(data: ClientMessage) {
   return sendFn(data)
 }
 

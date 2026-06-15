@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Card, Player, TrickPlay, LastTrick, PassFlow, RoundTable, SpecialEvent, Interaction, GamePhase } from '../types'
+import type { Card, Player, TrickPlay, LastTrick, PassFlow, RoundTable, SpecialEvent, Interaction, GamePhase, ServerState } from '../types'
 import { SUITS, VIEW_AVATAR_CLASSES, VIEW_AVATARS, PASS_HINTS, cardPoints } from '../types'
 
 function createPlaceholderPlayers(): Player[] {
@@ -76,9 +76,9 @@ export const useGameStore = defineStore('game', () => {
 
   const passProgress = computed(() => `${selectedPass.value.size}/3 张`)
 
-  function applyServerState(msg: any) {
+  function applyServerState(msg: ServerState) {
     yourIndex.value = msg.yourIndex ?? 0
-    phase.value = msg.phase || 'offline'
+    phase.value = (msg.phase || 'offline') as GamePhase
     roundNo.value = msg.roundNo || 1
     passMode.value = msg.passMode || 0
     trickNo.value = msg.trickNo || 0
@@ -101,7 +101,7 @@ export const useGameStore = defineStore('game', () => {
 
     // 更新玩家
     if (msg.players) {
-      players.value = msg.players.map((p: any, i: number) => ({
+      players.value = msg.players.map((p, i: number) => ({
         id: p.id || '',
         name: p.name || (i === 0 ? '你' : '等待中'),
         avatar: p.avatar || VIEW_AVATARS[i],
@@ -122,7 +122,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     // 更新出牌
-    trick.value = (msg.trick || []).map((play: any) => ({
+    trick.value = (msg.trick || []).map((play) => ({
       player: (play.player - yourIndex.value + 4) % 4,
       card: play.card
     }))

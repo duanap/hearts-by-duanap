@@ -1,7 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { useGameStore } from '../stores/game'
 import { useRoomStore } from '../stores/room'
-import type { ServerMessage } from '../types'
+import type { ServerMessage, ClientMessage } from '../types'
 
 export function useWebSocket() {
   const game = useGameStore()
@@ -26,7 +26,7 @@ export function useWebSocket() {
     return id
   }
 
-  function send(data: Record<string, any>) {
+  function send(data: ClientMessage) {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       lastError.value = '连接已断开，正在重连……'
       connect()
