@@ -113,26 +113,28 @@ ROOM_EMPTY_TTL_MS=600000 ROOM_IDLE_TTL_MS=7200000 pm2 start server.js --name hea
 
 ### 宝塔面板
 
-1. 安装 Nginx、Node.js 版本管理器、PM2 管理器
-2. 上传项目到 `/www/wwwroot/hearts-by-duanap`
+1. 宝塔软件商店安装：**Node.js 版本管理器**（选 Node 18+）、**PM2 管理器**、**Nginx**
+2. 通过文件管理器或 SSH 上传项目到 `/www/wwwroot/hearts.duanap.cn/hearts-by-duanap`
 3. 安装依赖：
 
 ```bash
-cd /www/wwwroot/hearts-by-duanap
-npm install
+cd /www/wwwroot/hearts.duanap.cn/hearts-by-duanap
+npm install --production
 ```
 
-4. PM2 后台运行：
+4. PM2 后台运行并设置开机自启：
 
 ```bash
-pm2 start server.js --name hearts-by-duanap
+pm2 start server.js --name hearts
 pm2 save
+pm2 startup
 ```
 
-5. Nginx 反向代理配置：
+5. 宝塔网站设置 → 伪静态 / Nginx 配置，添加 WebSocket 代理：
 
 ```nginx
-location / {
+# WebSocket 代理（必须加在 server 块内）
+location /ws {
     proxy_pass http://127.0.0.1:3000;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
@@ -143,21 +145,97 @@ location / {
 }
 ```
 
+> **注意：** WebSocket 必须走 `/ws` 路径。客户端已内置连接 `wss://域名/ws`，Nginx 需配置对应的 `location /ws` 代理规则。如果改了路径，需要同步修改 `public/js/app.js` 中的 `connectSocket` 函数。
+
+6. 验证：
+
+```bash
+pm2 list              # 确认进程运行中
+pm2 logs hearts       # 查看日志
+curl http://127.0.0.1:3000  # 测试本地连接
+```
+
+浏览器打开 `https://your-domain.com` 即可。
+
+### 常用运维命令
+
+```bash
+pm2 restart hearts    # 重启
+pm2 stop hearts       # 停止
+pm2 delete hearts     # 删除进程
+pm2 logs hearts       # 实时日志
+pm2 monit             # 监控面板
+```
+
 ## 常见问题
 
-### 页面能打开，但创建房间失败
+### 页面能打开但卡在"准备开始"，无法创建/加入房间
 
-检查 Nginx 是否包含 WebSocket 代理配置（见上方反向代理配置）。
+**原因：** WebSocket 连接失败。HTTPS 域名下浏览器使用 `wss://` 协议，但 Nginx 没有配置 WebSocket 代理，或代理路径不匹配。
+
+**解决：** 确认 Nginx 配置了 `location /ws` 并包含 `Upgrade` 和 `Connection` 头（见上方部署步骤第 5 步）。修改 Nginx 后执行 `nginx -s reload`。
+
+### 页面能打开，但创建/加入房间报错"尚未连接服务端"
+
+**原因：** 同上，WebSocket 未连通。
+
+**解决：**
+1. SSH 执行 `pm2 list` 确认 Node.js 进程在运行
+2. 执行 `pm2 logs hearts` 查看是否有启动报错
+3. 检查端口 3000 是否被占用：`lsof -i:3000`
+4. 检查 Nginx 错误日志：宝塔 → 网站 → 设置 → 日志
 
 ### 房间突然消失
 
 触发了自动解散规则：所有真人玩家离线超过 5 分钟，或房间超过 60 分钟无操作。调整 `ROOM_EMPTY_TTL_MS` 和 `ROOM_IDLE_TTL_MS`。
 
+### 浏览器看到旧版本 / 背景图不显示
+
+Service Worker 缓存了旧版本。解决：
+1. 强制刷新：`Ctrl + Shift + R`（Mac: `Cmd + Shift + R`）
+2. 或打开开发者工具 → Application → Storage → Clear site data
+3. 或地址栏输入 `chrome://serviceworker-internals` 注销旧 SW
+
+### 手机端牌桌布局错乱
+
+点击右上角"横屏"按钮切换横屏模式。竖屏下手牌和互动按钮可能重叠，横屏体验更佳。
+
+### AI 不出牌 / 游戏卡住
+
+**原因：** 服务端定时器异常或进程假死。
+
+**解决：** `pm2 restart hearts` 重启服务。如果频繁出现，检查 `pm2 logs hearts` 中的错误信息。
+
+### 如何修改房间超时时间
+
+通过环境变量配置：
+
+```bash
+# 所有人离线后 10 分钟解散（默认 5 分钟）
+ROOM_EMPTY_TTL_MS=600000 pm2 start server.js --name hearts
+
+# 房间 2 小时无活动后解散（默认 60 分钟）
+ROOM_IDLE_TTL_MS=7200000 pm2 start server.js --name hearts
+```
+
+### 如何查看 AI 学习数据
+
+AI 学习数据保存在 `data/ai_learning.json`，包含策略成功率、对手画像和训练参数。每 10 局自动训练一次。
+
+### PM2 进程消失了
+
+```bash
+pm2 save              # 保存当前进程列表
+pm2 startup           # 设置开机自启
+```
+
+如果服务器重启后 PM2 没有自动恢复，执行 `pm2 resurrect` 恢复上次保存的进程列表。
+
 ## 版本历史
 
 | 版本 | 主要内容 |
 |------|----------|
-| v1.4.20 | 修复首页卡死（stale roomId / 服务端无响应）、AI 接管支持纯 AI 座位、表情面板动态加载、首出牌闪烁描边、上一墩首出标签移至昵称旁 |
+| v1.4.20 | 修复首页卡死（stale roomId / 服务端无响应）、WSS 连接路径适配 Nginx `/ws` 代理、SW 缓存文件名修正、重复 shuffle 函数修复、AI 接管支持纯 AI 座位、表情面板动态加载、首出牌闪烁描边、上一墩首出标签移至昵称旁 |
 | v1.4.19 | Bug修复、AI策略优化、互动升级、首出提示、接管审批、缓存检查 |
 | v1.4.17 稳定版 | 按钮定位优化、横屏适配、调试精简 |
 | v1.4 | 互动系统、AI增强、PWA支持、动画全面优化 |
