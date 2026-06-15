@@ -5,34 +5,38 @@
       <div class="modal-card interaction-panel-card">
         <button class="modal-close" @click="$emit('close')">×</button>
         <h2 class="modal-title">牌桌互动</h2>
-        <p class="modal-subtitle">选择目标后发送表情、送花或扔番茄。</p>
+        <p class="modal-subtitle">选择目标后发送表情、送花或扔番茄。互动有冷却限制，避免刷屏。</p>
 
         <div class="interaction-target-strip">
           <span class="interaction-target-label">当前目标</span>
-          <button v-for="i in 4" :key="i" class="interaction-target-chip"
-            :class="{ 'is-active': target === i - 1 }"
-            @click="target = i - 1">
-            {{ targetName(i - 1) }}
+          <button v-for="(p, i) in game.players" :key="i" class="interaction-target-chip"
+            :class="{ 'is-active': interaction.target.value === i }"
+            @click="interaction.target.value = i">
+            {{ p.name }}
           </button>
         </div>
 
         <div class="interaction-section-title">快捷表情</div>
         <div class="interaction-grid">
-          <button v-for="(item, index) in emojis" :key="index" class="interaction-option"
-            @click="sendEmoji(item)">
+          <button v-for="(item, index) in interaction.EMOJIS" :key="index" class="interaction-option"
+            :disabled="interaction.cooldownRemaining(item.kind) > 0"
+            @click="interaction.sendEmoji(item, sendFn)">
             <span class="interaction-icon">{{ item.icon }}</span>
-            <span>{{ item.label }}</span>
+            <span>{{ interaction.cooldownRemaining(item.kind) ? `${item.label} ${interaction.cooldownRemaining(item.kind)}s` : item.label }}</span>
           </button>
         </div>
 
         <div class="interaction-section-title">道具互动</div>
         <div class="interaction-grid">
-          <button v-for="(item, index) in tools" :key="index" class="interaction-option" :class="item.className"
-            @click="sendTool(item)">
+          <button v-for="(item, index) in interaction.TOOLS" :key="index" class="interaction-option" :class="item.className"
+            :disabled="interaction.cooldownRemaining(item.kind) > 0 || (item.kind === 'tomato' && !settings.allowTomato)"
+            @click="interaction.sendTool(item, sendFn)">
             <span class="interaction-icon">{{ item.icon }}</span>
-            <span>{{ item.label }}</span>
+            <span>{{ getToolLabel(item) }}</span>
           </button>
         </div>
+
+        <div class="interaction-cooldown-note">普通表情 / 点赞 1 秒冷却，送花 / 扔番茄 1.8 秒冷却，鼓掌 2.2 秒冷却。</div>
 
         <div class="modal-actions">
           <button class="action-btn secondary" @click="$emit('close')">关闭</button>
@@ -43,51 +47,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useGameStore } from '../stores/game'
+import { useSettingsStore } from '../stores/settings'
+import { useInteraction } from '../composables/useInteraction'
 
 defineProps<{ show: boolean }>()
 defineEmits<{ close: [] }>()
 
 const game = useGameStore()
-const target = ref(0)
+const settings = useSettingsStore()
+const interaction = useInteraction()
 
-const EMOJIS = [
-  { kind: 'emoji', icon: '👍', label: '干得漂亮' },
-  { kind: 'emoji', icon: '😂', label: '哈哈哈' },
-  { kind: 'emoji', icon: '⚡', label: '搞快点！' },
-  { kind: 'emoji', icon: '🛸', label: '小飞棍来喽~' },
-  { kind: 'emoji', icon: '🚨', label: '拦住他' },
-  { kind: 'emoji', icon: '🌕', label: '冲月亮' },
-  { kind: 'emoji', icon: '😭', label: '家人们谁懂啊' },
-  { kind: 'emoji', icon: '🔍', label: '验牌' },
-  { kind: 'emoji', icon: '😏', label: '小瘪三' },
-]
-
-const TOOLS = [
-  { kind: 'flower', icon: '🌹', label: '送花', className: 'tool-flower' },
-  { kind: 'tomato', icon: '🍅', label: '扔番茄', className: 'tool-tomato' },
-  { kind: 'brick', icon: '🧱', label: '扔砖头', className: 'tool-brick' },
-  { kind: 'slipper', icon: '👟', label: '扔拖鞋', className: 'tool-slipper' },
-  { kind: 'cabbage', icon: '🥬', label: '扔白菜', className: 'tool-cabbage' },
-  { kind: 'like', icon: '❤️', label: '点赞', className: 'tool-like' },
-  { kind: 'applause', icon: '👏', label: '鼓掌', className: 'tool-applause' },
-]
-
-const emojis = EMOJIS
-const tools = TOOLS
-
-function targetName(i: number) {
-  const names = ['自己', '上家', '对家', '下家']
-  return game.players[i]?.name || names[i]
+function sendFn(data: any) {
+  // This will be injected from App.vue via provide/inject or event
+  // For now, dispatch a custom event
+  window.dispatchEvent(new CustomEvent('ws-send', { detail: data }))
+  return true
 }
 
-function sendEmoji(item: typeof EMOJIS[0]) {
-  // Will connect to WebSocket composable
-}
-
-function sendTool(item: typeof TOOLS[0]) {
-  // Will connect to WebSocket composable
+function getToolLabel(item: { kind: string; label: string }) {
+  const cd = interaction.cooldownRemaining(item.kind)
+  if (item.kind === 'tomato' && !settings.allowTomato) return '番茄已关'
+  if (cd) return `${item.label} ${cd}s`
+  return item.label
 }
 </script>
 
@@ -129,8 +111,14 @@ function sendTool(item: typeof TOOLS[0]) {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.52); font-weight: 950; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit;
   &:hover { filter: brightness(1.04); }
+  &:disabled { opacity: .45; cursor: not-allowed; }
 }
 .interaction-icon { font-size: 19px; line-height: 1; }
+
+.interaction-cooldown-note {
+  margin-top: 12px; padding: 8px; border-radius: 12px;
+  background: rgba(255,255,255,.28); font-size: 12px; color: rgba(91, 66, 39, .78); font-weight: 900;
+}
 
 .modal-actions { display: flex; justify-content: center; gap: 12px; margin-top: 16px; }
 .action-btn {
