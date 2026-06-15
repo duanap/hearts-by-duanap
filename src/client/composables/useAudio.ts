@@ -8,7 +8,7 @@ export function useAudio() {
   function playTone(freq = 520, duration = 0.08, type: OscillatorType = 'sine', gainValue = 0.035) {
     if (!settings.soundEnabled) return
     try {
-      const AC = window.AudioContext || (window as any).webkitAudioContext
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!AC) return
       audioContext = audioContext || new AC()
       if (audioContext.state === 'suspended') audioContext.resume()
