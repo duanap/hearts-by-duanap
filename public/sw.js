@@ -6,7 +6,7 @@ const APP_SHELL = [
   '/js/app.js',
   '/manifest.webmanifest',
   '/icons/icon.svg',
-  '/table-bg-v1210.webp'
+  '/table-bg.webp'
 ];
 
 self.addEventListener('install', event => {

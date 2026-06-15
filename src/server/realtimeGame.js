@@ -113,7 +113,7 @@ function makeDeck() {
   return deck;
 }
 
-function shuffle(deck) {
+function shuffleInPlace(deck) {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -778,7 +778,7 @@ function startRound(room, { resetScores = false } = {}) {
   room.passSelections = [null, null, null, null];
   if (resetScores) room.aiMoonGuardInteractionCount = 0;
 
-  const deck = shuffle(makeDeck());
+  const deck = shuffleInPlace(makeDeck());
   for (let i = 0; i < deck.length; i++) room.players[i % 4].hand.push(deck[i]);
   room.players.forEach(player => sortHand(player.hand));
 
