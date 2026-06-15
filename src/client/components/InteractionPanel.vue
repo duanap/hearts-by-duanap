@@ -20,7 +20,7 @@
         <div class="interaction-grid">
           <button v-for="(item, index) in interaction.EMOJIS" :key="index" class="interaction-option"
             :disabled="interaction.cooldownRemaining(item.kind) > 0"
-            @click="interaction.sendEmoji(item, sendFn)">
+            @click="interaction.sendEmoji(item, sendToWs)">
             <span class="interaction-icon">{{ item.icon }}</span>
             <span>{{ interaction.cooldownRemaining(item.kind) ? `${item.label} ${interaction.cooldownRemaining(item.kind)}s` : item.label }}</span>
           </button>
@@ -30,7 +30,7 @@
         <div class="interaction-grid">
           <button v-for="(item, index) in interaction.TOOLS" :key="index" class="interaction-option" :class="item.className"
             :disabled="interaction.cooldownRemaining(item.kind) > 0 || (item.kind === 'tomato' && !settings.allowTomato)"
-            @click="interaction.sendTool(item, sendFn)">
+            @click="interaction.sendTool(item, sendToWs)">
             <span class="interaction-icon">{{ item.icon }}</span>
             <span>{{ getToolLabel(item) }}</span>
           </button>
@@ -47,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue'
 import { useGameStore } from '../stores/game'
 import { useSettingsStore } from '../stores/settings'
 import { useInteraction } from '../composables/useInteraction'
@@ -57,12 +58,10 @@ defineEmits<{ close: [] }>()
 const game = useGameStore()
 const settings = useSettingsStore()
 const interaction = useInteraction()
+const sendFn = inject<(data: any) => boolean>('wsSend', () => false)
 
-function sendFn(data: any) {
-  // This will be injected from App.vue via provide/inject or event
-  // For now, dispatch a custom event
-  window.dispatchEvent(new CustomEvent('ws-send', { detail: data }))
-  return true
+function sendToWs(data: any) {
+  return sendFn(data)
 }
 
 function getToolLabel(item: { kind: string; label: string }) {

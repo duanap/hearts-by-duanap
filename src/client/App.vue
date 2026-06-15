@@ -41,11 +41,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, provide, watch } from 'vue'
 import { useGameStore } from './stores/game'
 import { useRoomStore } from './stores/room'
 import { useSettingsStore } from './stores/settings'
 import { useWebSocket } from './composables/useWebSocket'
+import { useAudio } from './composables/useAudio'
 import GameTable from './components/GameTable.vue'
 import RoomModal from './components/RoomModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -60,6 +61,11 @@ const game = useGameStore()
 const room = useRoomStore()
 const settings = useSettingsStore()
 const ws = useWebSocket()
+const audio = useAudio()
+
+// Provide send function to child components
+provide('wsSend', ws.send)
+provide('audio', audio)
 
 const showRoomModal = ref(false)
 const showSettingsModal = ref(false)
@@ -96,13 +102,23 @@ function onJoinRoom(data: { nickname: string; roomId: string }) {
 }
 
 function onPlayCard(cardId: string) {
-  ws.send({ type: 'playCard', cardId })
+  if (ws.send({ type: 'playCard', cardId })) {
+    audio.playGameSound('play')
+  }
+}
+
+function onPassCards(cardIds: string[]) {
+  if (ws.send({ type: 'passCards', cards: cardIds })) {
+    game.passSending = true
+    game.passingCardIds = new Set(cardIds)
+    audio.playGameSound('pass')
+  }
 }
 
 function onCenterAction() {
   if (game.phase === 'pass') {
     if (game.selectedPass.size === 3) {
-      ws.send({ type: 'passCards', cards: [...game.selectedPass] })
+      onPassCards([...game.selectedPass])
     }
   } else if (game.phase === 'roundEnd') {
     ws.send({ type: 'startNextRound' })
@@ -112,6 +128,26 @@ function onCenterAction() {
     showRoomModal.value = true
   }
 }
+
+// 自动显示上一轮弹窗
+watch(() => game.lastTrick, (val) => {
+  if (val && game.phase === 'play') {
+    showLastTrick.value = true
+    setTimeout(() => { showLastTrick.value = false }, 2500)
+  }
+})
+
+// 自动显示特效
+let specialTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => game.specialEvents.length, (newLen, oldLen) => {
+  if (newLen > oldLen && game.specialEvents.length) {
+    const latest = game.specialEvents[game.specialEvents.length - 1]
+    currentSpecialEvent.value = latest
+    showSpecialEvent.value = true
+    clearTimeout(specialTimer!)
+    specialTimer = setTimeout(() => { showSpecialEvent.value = false }, 2000)
+  }
+})
 
 onMounted(() => {
   ws.connect()

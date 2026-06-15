@@ -52,7 +52,7 @@ import PlayerSeat from './PlayerSeat.vue'
 import PlayerHand from './PlayerHand.vue'
 import CenterRing from './CenterRing.vue'
 
-defineEmits<{
+const emit = defineEmits<{
   playCard: [cardId: string]
   passCards: [cardIds: string[]]
   centerAction: []
@@ -98,12 +98,12 @@ function onCardSelect(card: Card) {
       game.selectedPass.add(card.id)
     }
   } else if (game.phase === 'play' && game.isYourTurn && game.legalCardIds.has(card.id)) {
-    // Will emit playCard to parent
+    emit('playCard', card.id)
   }
 }
 
 function onCenterAction() {
-  // Will be handled by parent
+  emit('centerAction')
 }
 </script>
 
