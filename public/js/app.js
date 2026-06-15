@@ -400,7 +400,7 @@
     function connectSocket() {
       if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) return;
       const protocol = location.protocol === "https:" ? "wss" : "ws";
-      socket = new WebSocket(`${protocol}://${location.host}`);
+      socket = new WebSocket(`${protocol}://${location.host}/ws`);
 
       socket.addEventListener("open", () => {
         state.connected = true;
