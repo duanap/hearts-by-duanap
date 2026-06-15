@@ -45,7 +45,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useGameStore } from '../stores/game'
-import { useRoomStore } from '../stores/room'
 import { SUITS, rankText as getRankText } from '../types'
 import type { Card } from '../types'
 import PlayerSeat from './PlayerSeat.vue'
@@ -59,10 +58,9 @@ const emit = defineEmits<{
 }>()
 
 const game = useGameStore()
-const room = useRoomStore()
 
 const trickSlots = computed(() => {
-  const slots = [null, null, null, null] as any[]
+  const slots: (typeof game.trick[0] | null)[] = [null, null, null, null]
   for (const play of game.trick) {
     slots[play.player] = play
   }
