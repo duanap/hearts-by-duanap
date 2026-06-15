@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "strategies": {
+    "pass_risk_high": {
+      "attempts": 2,
+      "successes": 2,
+      "totalPoints": 0
+    },
+    "pass_void": {
+      "attempts": 6,
+      "successes": 6,
+      "totalPoints": 0
+    }
+  },
+  "opponents": {},
+  "games": [],
+  "trained": {
+    "moonThreshold": 0.3,
+    "blockPriority": 1,
+    "leadSafety": 1,
+    "dumpAggression": 1,
+    "passRiskBonus": 1,
+    "passVoidBonus": 1,
+    "passMoonPreserve": 1
+  },
+  "lifecycle": {
+    "createdAt": 1781462217816,
+    "lastArchived": null,
+    "lastTrained": null,
+    "totalGames": 0,
+    "totalRounds": 0,
+    "trainingRounds": 0
+  }
+}
