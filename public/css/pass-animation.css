@@ -1,0 +1,57 @@
+/* Pass and collect motion overrides. Keep after app.css. */
+.trick-area .judge-bubble.hidden,
+.trick-area .judge-bubble:empty {
+  display: none !important;
+}
+
+.player-hand .card.selected:not(.passing-out) {
+  animation: passSelectedPulse139 1.05s ease-in-out infinite !important;
+}
+
+@keyframes passSelectedPulse139 {
+  0%, 100% { filter: brightness(1.05) saturate(1.05); }
+  50% { filter: brightness(1.18) saturate(1.14); }
+}
+
+.player-hand .card.passing-out {
+  pointer-events: none !important;
+  animation: passOut139 .46s cubic-bezier(.18,.78,.22,1) both !important;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes passOut139 {
+  0% { opacity: 1; filter: brightness(1.12) saturate(1.08); transform: translateY(-22px) scale(1.04) rotate(var(--rot, 0deg)); }
+  55% { opacity: .96; filter: brightness(1.20) saturate(1.12); transform: translate(calc(var(--pass-x, 0px) * .44), calc(var(--pass-y, 0px) * .44 - 22px)) scale(.92) rotate(var(--rot, 0deg)); }
+  100% { opacity: 0; filter: brightness(.96) saturate(.92); transform: translate(var(--pass-x, 0px), var(--pass-y, 0px)) scale(.62) rotate(var(--rot, 0deg)); }
+}
+
+.player-hand .card.just-received {
+  animation: passInReceived139 .82s cubic-bezier(.17,.82,.23,1.08) both, receivedPulse139 .72s ease-in-out .82s 4 !important;
+  box-shadow: 0 0 0 5px rgba(104, 255, 152, .96), 0 0 30px rgba(104, 255, 152, .74), 0 12px 0 rgba(123, 82, 43, .16), 0 18px 30px rgba(64, 70, 38, .24) !important;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes passInReceived139 {
+  0% { opacity: 0; filter: brightness(1.25) saturate(1.18); transform: translate(var(--receive-x, 0px), var(--receive-y, -180px)) scale(.62) rotate(var(--rot, 0deg)); }
+  68% { opacity: 1; filter: brightness(1.32) saturate(1.22); transform: translate(0, -12px) scale(1.08) rotate(var(--rot, 0deg)); }
+  100% { opacity: 1; filter: brightness(1.08) saturate(1.10); transform: translate(0, 0) scale(1) rotate(var(--rot, 0deg)); }
+}
+
+@keyframes receivedPulse139 {
+  0%, 100% { filter: brightness(1.06) saturate(1.10); }
+  50% { filter: brightness(1.34) saturate(1.28); }
+}
+
+.trick-area.collecting .slot .card {
+  animation: collectToWinner139 .82s cubic-bezier(.18,.76,.20,1) both !important;
+  animation-delay: var(--collect-delay, 0ms) !important;
+  transform-origin: center center !important;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes collectToWinner139 {
+  0% { opacity: 1; filter: brightness(1.05); transform: translate(0, 0) scale(1) rotate(0deg); }
+  36% { opacity: 1; filter: brightness(1.15); transform: translate(calc(var(--collect-x, 0px) * .18), calc(var(--collect-y, 0px) * .18)) scale(.94) rotate(var(--collect-rot, 0deg)); }
+  78% { opacity: .92; filter: brightness(1.08); transform: translate(calc(var(--collect-x, 0px) * .78), calc(var(--collect-y, 0px) * .78)) scale(.64) rotate(var(--collect-rot, 0deg)); }
+  100% { opacity: 0; filter: brightness(.96); transform: translate(var(--collect-x, 0px), var(--collect-y, 0px)) scale(.38) rotate(var(--collect-rot, 0deg)); }
+}

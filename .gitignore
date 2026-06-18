@@ -1,0 +1,16 @@
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.DS_Store
+.idea/
+android/.idea/
+.codex*.png
+public_backup_*/
+public_failed_*/
+public_legacy/
+dist/
+build/
+*.apk
+*.aab

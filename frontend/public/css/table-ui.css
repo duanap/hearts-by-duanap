@@ -1,0 +1,144 @@
+/* Table action, replay, round-table, and server connection UI. Keep after app.css. */
+.table-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  min-height: 32px !important;
+  padding: 7px 11px !important;
+  color: #fff9df !important;
+  background: rgba(10, 31, 18, .34) !important;
+  border: 1px solid rgba(255, 232, 137, .42) !important;
+  box-shadow: 0 7px 18px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.10) !important;
+  backdrop-filter: blur(10px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(125%) !important;
+}
+
+.table-action-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: #17351c;
+  background: linear-gradient(145deg, #ffe58b, #f4b940);
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+.last-trick-title > div {
+  min-width: 0;
+}
+
+.last-trick-subtitle {
+  margin-top: 3px;
+  color: rgba(255, 249, 224, .62);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.last-trick-stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 232, 137, .18);
+  border-radius: 12px;
+  color: #ffe68f;
+  background: rgba(255, 232, 137, .08);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.last-trick-cell {
+  position: relative;
+}
+
+.last-trick-cell.is-self {
+  border-color: rgba(123, 196, 255, .42) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(123,196,255,.08);
+}
+
+.last-trick-order {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  color: rgba(255, 249, 224, .74);
+  background: rgba(255,255,255,.08);
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.round-table-view thead {
+  display: none !important;
+}
+
+.round-table-row td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.round-table-toolbar {
+  caption-side: top;
+  padding: 0 0 10px;
+  text-align: left;
+}
+
+.round-table-toolbar span {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #ffe68f;
+  background: rgba(255, 232, 137, .10);
+  border: 1px solid rgba(255, 232, 137, .18);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.server-connect-panel {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 232, 137, .16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .055);
+}
+
+.server-connect-panel.is-connected {
+  border-color: rgba(80, 180, 100, .24);
+}
+
+.server-url-field {
+  margin: 0 0 9px !important;
+}
+
+.server-connect-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.server-connect-actions .action-btn {
+  flex: 1 1 140px;
+}
+
+.server-url-hint,
+.connection-server-line {
+  margin-top: 8px;
+  color: rgba(255, 249, 224, .68);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.connection-card {
+  max-width: min(440px, calc(100vw - 28px)) !important;
+}
