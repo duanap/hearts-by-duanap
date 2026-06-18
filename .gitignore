@@ -12,5 +12,7 @@ public_failed_*/
 public_legacy/
 dist/
 build/
+data/ai_learning.json
+data/archives/
 *.apk
 *.aab

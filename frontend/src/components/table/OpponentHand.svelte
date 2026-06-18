@@ -41,12 +41,12 @@
   }
 
   function stackCardStyle(index: number): string {
-    const stackW = forcedPortraitLandscape ? 27 : 30;
+    const stackW = forcedPortraitLandscape ? 32 : 36;
     const stackH = Math.round(stackW * 1.42);
-    const dx = position === "east" ? -index * 5 : index * 5;
-    const dy = index * 4;
+    const dx = position === "east" ? -index * 6 : index * 6;
+    const dy = index * 5;
     const rot = position === "north" ? -5 + index * 4 : position === "west" ? -7 + index * 3 : 7 - index * 3;
-    return `width:${stackW}px;height:${stackH}px;left:${16 + dx}px;top:${6 + dy}px;--rot:${rot}deg;transform:rotate(var(--rot));z-index:${index};`;
+    return `width:${stackW}px;height:${stackH}px;left:${12 + dx}px;top:${3 + dy}px;--rot:${rot}deg;transform:rotate(var(--rot));z-index:${index};`;
   }
 </script>
 
@@ -59,9 +59,6 @@
     {#each Array(stackCount) as _, index}
       <div class="card-back stack-card" style={stackCardStyle(index)}></div>
     {/each}
-    {#if count > 0}
-      <span class="hand-count-badge">x{count}</span>
-    {/if}
   {:else}
     {#each Array(count) as _, index}
       <div class="card-back" style={cardStyle(index)}></div>

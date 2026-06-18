@@ -1,7 +1,16 @@
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const aiLearning = require('./aiLearning');
 const { readNumberEnv } = require('./env');
 const { createRateLimiter } = require('./rateLimiter');
+
+let aiLearningShutdownHookInstalled = false;
+
+function installAiLearningShutdownHook() {
+  if (aiLearningShutdownHookInstalled) return;
+  aiLearningShutdownHookInstalled = true;
+  process.once('exit', () => aiLearning.shutdown());
+}
 
 function readListEnv(name) {
   return String(process.env[name] || '')
@@ -56,6 +65,7 @@ function makeReconnectToken() {
 }
 
 function attachRealtimeGame(server) {
+  installAiLearningShutdownHook();
   const maxPayload = readNumberEnv('WS_MAX_PAYLOAD_BYTES', 16 * 1024, { min: 1024, max: 1024 * 1024, integer: true });
   const trustProxy = readBooleanEnv('TRUST_PROXY', false);
   const messageLimiter = createRateLimiter({
@@ -269,7 +279,8 @@ function attachRealtimeGame(server) {
       log: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      emptySince: null
+      emptySince: null,
+      pendingTakeover: null
     };
     rooms.set(room.id, room);
     return room;
@@ -792,7 +803,9 @@ function attachRealtimeGame(server) {
       converted++;
   
       if (room.phase === 'pass' && (!room.passSelections[index] || room.passSelections[index].length !== 3)) {
-        room.passSelections[index] = choosePassCards(room, index).map(card => card.id);
+        const cards = choosePassCards(room, index);
+        room.passSelections[index] = cards.map(card => card.id);
+        aiLearning.recordPassDecision(room, index, cards);
       }
     });
     return converted;
@@ -875,7 +888,11 @@ function attachRealtimeGame(server) {
   
     room.phase = 'pass';
     room.players.forEach((player, index) => {
-      if (player.isBot) room.passSelections[index] = choosePassCards(room, index).map(card => card.id);
+      if (player.isBot) {
+        const cards = choosePassCards(room, index);
+        room.passSelections[index] = cards.map(card => card.id);
+        aiLearning.recordPassDecision(room, index, cards);
+      }
     });
     broadcast(room);
     maybeCompletePass(room);
@@ -1001,26 +1018,29 @@ function attachRealtimeGame(server) {
       const ranks = new Set(hand.filter(card => card.suit === suit).map(card => Number(card.rank)));
       return [10, 11, 12, 13, 14].every(rank => ranks.has(rank));
     }) : '';
+    const riskBonus = aiLearning.getTrainedWeight('passRiskBonus');
+    const voidBonus = aiLearning.getTrainedWeight('passVoidBonus');
+    const moonPreserve = aiLearning.getTrainedWeight('passMoonPreserve');
   
     const passScore = card => {
       let score = cardDangerValue(card);
   
       // 若手牌具备明显射月骨架，尽量保留成套控牌，不轻易拆掉 10/J/Q/K/A。
-      if (moonPattern && card.suit === moonLockSuit && card.rank >= 10) score -= 520;
+      if (moonPattern && card.suit === moonLockSuit && card.rank >= 10) score -= 520 * moonPreserve;
   
       // 优先处理黑桃 Q，以及会被黑桃 Q 反咬的 A/K。
-      if (card.id === 'S12') score += moonPattern ? 220 : 700;
-      if (card.suit === 'S' && card.rank >= 13) score += hasQueenSpades || suitCounts.S <= 4 ? 260 : 120;
+      if (card.id === 'S12') score += (moonPattern ? 220 : 700) * riskBonus;
+      if (card.suit === 'S' && card.rank >= 13) score += (hasQueenSpades || suitCounts.S <= 4 ? 260 : 120) * riskBonus;
   
       // 高红桃、A/K/Q 等控牌过强且带分风险高，优先传走。
-      if (card.suit === 'H' && card.rank >= 11) score += 180;
-      if (card.suit !== 'S' && card.rank === 14) score += 70;
-      if (card.suit !== 'S' && card.rank === 13) score += 45;
+      if (card.suit === 'H' && card.rank >= 11) score += 180 * riskBonus;
+      if (card.suit !== 'S' && card.rank === 14) score += 70 * riskBonus;
+      if (card.suit !== 'S' && card.rank === 13) score += 45 * riskBonus;
   
       // 尽量做短门：同一花色 1-3 张时，传走更容易形成缺门，后续可甩分或避分。
       if (suitCounts[card.suit] > 0 && suitCounts[card.suit] <= 3) {
-        score += (4 - suitCounts[card.suit]) * 34;
-        if (card.rank >= 10) score += 26;
+        score += (4 - suitCounts[card.suit]) * 34 * voidBonus;
+        if (card.rank >= 10) score += 26 * voidBonus;
       }
   
       // 保留低张安全牌和梅花 2，避免传掉过多控局资源。
@@ -1106,6 +1126,7 @@ function attachRealtimeGame(server) {
   
     room.passSelections = [null, null, null, null];
     addLog(room, `传牌完成：${PASS_NAMES[room.passMode]}。`);
+    aiLearning.recordPassOutcome(room);
     beginPlay(room);
   }
   
@@ -1167,10 +1188,12 @@ function attachRealtimeGame(server) {
       const score = Number(room.players[i].round || 0);
       // A player can only shoot the moon if every other player still has 0 round points.
       if (!canStillShootMoon(room, i)) continue;
+      const adjusted = aiLearning.adjustMoonThreatForOpponent(room.players[i]?.id, { playerIndex: i, score });
+      if (!adjusted) continue;
       // 仅用公开分数判断：当某家已经吃下大多数分牌，或接近 26 分时，视为射月威胁。
       const hasMostPublicPoints = score >= 13 && totalKnownPoints > 0 && score >= totalKnownPoints - 2;
       const isNearMoon = score >= 18;
-      if ((hasMostPublicPoints || isNearMoon) && (!best || score > best.score)) best = { playerIndex: i, score };
+      if ((hasMostPublicPoints || isNearMoon) && (!best || score > best.score)) best = adjusted;
     }
     return best;
   }
@@ -1277,13 +1300,14 @@ function attachRealtimeGame(server) {
     const controlScore = ownPublicControlScore(hand);
     const legalCanCollect = (legal || []).some(card => card.rank >= 12 || isPoint(card));
     const moonPattern = hasMoonLaunchPattern(hand);
+    let moonDecision = false;
     // 高手射月：当某一花色 10/J/Q/K/A 齐全且其它花色仍有两张以上 K/A 时，可从前中期主动尝试吃分。
-    if (moonPattern && (legalCanCollect || room.trickNo <= 4 || roundScore >= 4)) return true;
+    if (moonPattern && (legalCanCollect || room.trickNo <= 4 || roundScore >= 4)) moonDecision = true;
     // 保守射月：只有自己已经吃到不少分，且手中仍有明显控牌能力时才继续推进。
-    if (roundScore >= 20) return controlScore >= 4 && legalCanCollect;
-    if (roundScore >= 15) return controlScore >= 7 && legalCanCollect;
-    if (roundScore >= 10 && moonPattern) return controlScore >= 5;
-    return false;
+    else if (roundScore >= 20) moonDecision = controlScore >= 4 && legalCanCollect;
+    else if (roundScore >= 15) moonDecision = controlScore >= 7 && legalCanCollect;
+    else if (roundScore >= 10 && moonPattern) moonDecision = controlScore >= 5;
+    return aiLearning.shouldPreferMoon(moonDecision, controlScore);
   }
   
   function chooseLeadCard(room, playerIndex, legal, shootMoon) {
@@ -1325,6 +1349,15 @@ function attachRealtimeGame(server) {
     if (tempoHeart && !shootMoon && fallback.includes(tempoHeart)) return tempoHeart;
     return fallback[0] || low[0] || high[0];
   }
+
+  function rememberAIStrategy(room, playerIndex, patch) {
+    if (!room.players[playerIndex]?.isBot) return;
+    if (!room._aiStrategies) room._aiStrategies = {};
+    room._aiStrategies[playerIndex] = {
+      ...(room._aiStrategies[playerIndex] || {}),
+      ...patch
+    };
+  }
   
   function chooseAICard(room, playerIndex) {
     const legal = legalCards(room, playerIndex);
@@ -1337,6 +1370,11 @@ function attachRealtimeGame(server) {
     const high = sortHigh(legal);
     const shootMoon = shouldTryShootMoon(room, playerIndex, legal);
     const moonThreat = findMoonThreat(room, playerIndex);
+    rememberAIStrategy(room, playerIndex, {
+      moonAttempt: shootMoon,
+      moonBlocked: false,
+      phase: room.trick.length === 0 ? 'lead' : 'mid'
+    });
     if (moonThreat && room.players[playerIndex]?.isBot) {
       maybeTriggerAIMoonGuardInteraction(room, playerIndex, moonThreat.playerIndex, 'suspect');
     }
@@ -1367,6 +1405,7 @@ function attachRealtimeGame(server) {
       // 防射月：若威胁玩家正在赢本墩，AI 会在合法范围内主动用最小大牌截胡，并触发互动提醒。
       if (moonThreat && currentWinner === moonThreat.playerIndex && over.length) {
         maybeTriggerAIMoonGuardInteraction(room, playerIndex, moonThreat.playerIndex, 'block');
+        rememberAIStrategy(room, playerIndex, { moonBlocked: true, blockTarget: moonThreat.playerIndex, phase: 'block' });
         return over[0];
       }
   
@@ -1398,6 +1437,7 @@ function attachRealtimeGame(server) {
     // 缺门时优先甩危险牌；但若当前赢家疑似射月，则尽量不继续喂分。
     if (moonThreat && currentWinner === moonThreat.playerIndex) {
       const safe = sortHigh(legal.filter(card => !isPoint(card)))[0];
+      rememberAIStrategy(room, playerIndex, { moonBlocked: true, blockTarget: moonThreat.playerIndex, phase: 'block' });
       if (safe) return safe;
       return sortLow(legal)[0];
     }
@@ -1414,6 +1454,7 @@ function attachRealtimeGame(server) {
     }
   
     const remainingDanger = sortDangerHigh(legal.filter(card => !isPoint(card)))[0];
+    rememberAIStrategy(room, playerIndex, { phase: 'dump' });
     if (remainingDanger) return remainingDanger;
   
     // 末位且本墩已有分，能垫低分时避免额外加大风险。
@@ -1559,6 +1600,33 @@ function attachRealtimeGame(server) {
         row.total = Number(room.players[index]?.total || 0);
       });
     }
+
+    const strategies = room._aiStrategies || {};
+    for (let i = 0; i < room.players.length; i += 1) {
+      const player = room.players[i];
+      const strategy = strategies[i] || {};
+      if (player.isBot) {
+        if (strategy.moonAttempt) {
+          const moonSuccess = shooter === i;
+          aiLearning.recordStrategyOutcome('moon_attempt', moonSuccess, moonSuccess ? 0 : player.round);
+        }
+        if (strategy.moonBlocked) {
+          aiLearning.recordStrategyOutcome('block_moon', shooter < 0, 0);
+        }
+        aiLearning.recordStrategyOutcome(`lead_${strategy.phase || 'mid'}`, player.round <= 3, -player.round);
+      } else if (player.id) {
+        const didMoonAttempt = shooter === i;
+        aiLearning.recordOpponentRound(player.id, {
+          moonAttempt: didMoonAttempt,
+          moonSuccess: didMoonAttempt,
+          aggressive: player.round >= 10,
+          defensive: player.round <= 2,
+          points: player.round,
+        });
+      }
+    }
+    aiLearning.recordGame(room);
+    delete room._aiStrategies;
   
     if (Math.max(...room.players.map(player => player.total)) >= 100) {
       room.phase = 'gameEnd';
@@ -1646,6 +1714,13 @@ function attachRealtimeGame(server) {
     const player = room.players[ws.playerIndex];
     return player && player.id === room.hostId;
   }
+
+  function findSocketByClientId(clientId) {
+    for (const client of wss.clients) {
+      if (client.clientId === clientId && client.readyState === WebSocket.OPEN) return client;
+    }
+    return null;
+  }
   
   function normalizeNickname(name) {
     const input = String(name || '').trim();
@@ -1713,15 +1788,23 @@ function attachRealtimeGame(server) {
   
   function replaceTakeoverBotWithHuman(ws, room, botIndex, clientId, nickname, msg) {
     const player = room.players[botIndex];
-    if (!player || !player.isBot || !player.takeoverFromName) return false;
-    if (!hasValidReconnectToken(msg, player)) {
+    if (!player || !player.isBot) return false;
+    const restoringHumanSeat = Boolean(player.takeoverFromName);
+    const approvedPureBotTakeover = Boolean(
+      room.pendingTakeover &&
+      room.pendingTakeover.clientId === clientId &&
+      room.pendingTakeover.botIndex === botIndex &&
+      !restoringHumanSeat
+    );
+    if (!restoringHumanSeat && !approvedPureBotTakeover) return false;
+    if (restoringHumanSeat && !hasValidReconnectToken(msg, player)) {
       sendReconnectRequired(ws);
       return true;
     }
     const oldBotId = player.id;
     player.id = clientId;
-    player.name = player.takeoverFromName || nickname || '玩家';
-    player.avatar = player.takeoverFromAvatar || pickHumanAvatar(room);
+    player.name = restoringHumanSeat ? (player.takeoverFromName || nickname || '玩家') : (normalizeNickname(nickname) || player.name || '玩家');
+    player.avatar = restoringHumanSeat ? (player.takeoverFromAvatar || pickHumanAvatar(room)) : pickHumanAvatar(room);
     if (player.disconnectGraceTimer) clearTimeout(player.disconnectGraceTimer);
     player.disconnectGraceTimer = null;
     player.disconnectGraceStartedAt = null;
@@ -1734,6 +1817,7 @@ function attachRealtimeGame(server) {
     player.takeoverFromName = null;
     player.takeoverFromAvatar = null;
     player.takeoverAt = null;
+    player.reconnectToken = player.reconnectToken || makeReconnectToken();
   
     if (room.hostId === oldBotId) room.hostId = player.id;
     attachSocketToPlayer(ws, room, botIndex);
@@ -1743,7 +1827,38 @@ function attachRealtimeGame(server) {
     }
   
     touchRoom(room);
-    addLog(room, `${player.name} 已重新加入，并取代 AI 接管座位。`);
+    addLog(room, restoringHumanSeat
+      ? `${player.name} 已重新加入，并取代 AI 接管座位。`
+      : `${player.name} 已接管 AI「${room.pendingTakeover?.botName || '座位'}」。`);
+    broadcast(room);
+    return true;
+  }
+
+  function requestBotTakeover(ws, room, clientId, nickname, botIndex) {
+    if (room.pendingTakeover) return sendError(ws, '当前已有待处理的接管请求，请等待房主处理');
+    const target = room.players[botIndex];
+    if (!target || !target.isBot || target.takeoverFromName) return sendError(ws, '该座位不能申请接管');
+
+    ws.clientId = clientId;
+    room.pendingTakeover = {
+      clientId,
+      nickname,
+      botIndex,
+      botName: target.name,
+      requestedAt: Date.now()
+    };
+    send(ws, { type: 'takeoverRequested', roomId: room.id, botName: target.name });
+    const hostWs = room.players.find(player => player.id === room.hostId)?.ws;
+    if (hostWs) {
+      send(hostWs, {
+        type: 'takeoverApprovalNeeded',
+        roomId: room.id,
+        nickname,
+        botName: target.name,
+        botIndex
+      });
+    }
+    addLog(room, `${nickname} 请求接管 AI「${target.name}」的牌局，等待房主批准。`);
     broadcast(room);
     return true;
   }
@@ -1822,6 +1937,16 @@ function attachRealtimeGame(server) {
         return;
       }
 
+      const pureBotIndex = room.players.findIndex(player =>
+        player.isBot &&
+        !player.takeoverFromName &&
+        normalizeNickname(player.name) === nickname
+      );
+      if (pureBotIndex >= 0) {
+        requestBotTakeover(ws, room, clientId, nickname, pureBotIndex);
+        return;
+      }
+
       const onlineSameNameIndex = findHumanByNormalizedName(room, nickname, player => (
         player.id !== clientId &&
         !player.leftRoom &&
@@ -1894,6 +2019,48 @@ function attachRealtimeGame(server) {
       broadcast(room);
       maybeCompletePass(room);
       scheduleBot(room);
+      return;
+    }
+
+    if (msg.type === 'approveTakeover') {
+      if (!canHost(ws, room)) return sendError(ws, '只有房主可以批准接管');
+      if (!room.pendingTakeover) return sendError(ws, '当前没有待处理的接管请求');
+      const pending = room.pendingTakeover;
+      const targetWs = findSocketByClientId(pending.clientId);
+      if (!targetWs) {
+        room.pendingTakeover = null;
+        broadcast(room);
+        return sendError(ws, '请求者已离线');
+      }
+      if (!replaceTakeoverBotWithHuman(targetWs, room, pending.botIndex, pending.clientId, pending.nickname, msg)) {
+        room.pendingTakeover = null;
+        broadcast(room);
+        return sendError(ws, '接管失败，目标座位不可用');
+      }
+      addLog(room, `房主批准了 ${pending.nickname} 接管 AI「${pending.botName}」的牌局。`);
+      room.pendingTakeover = null;
+      broadcast(room);
+      return;
+    }
+
+    if (msg.type === 'rejectTakeover') {
+      if (!canHost(ws, room)) return sendError(ws, '只有房主可以拒绝接管');
+      if (!room.pendingTakeover) return sendError(ws, '当前没有待处理的接管请求');
+      const pending = room.pendingTakeover;
+      const targetWs = findSocketByClientId(pending.clientId);
+      if (targetWs) send(targetWs, { type: 'takeoverRejected', roomId: room.id, message: '房主拒绝了你的接管请求' });
+      addLog(room, `房主拒绝了 ${pending.nickname} 接管 AI「${pending.botName}」的请求。`);
+      room.pendingTakeover = null;
+      broadcast(room);
+      return;
+    }
+
+    if (msg.type === 'requestTakeover') {
+      const player = room.players[ws.playerIndex];
+      if (!player || player.isBot) return sendError(ws, '只有真人玩家可以请求接管');
+      const botIndex = Number(msg.botIndex);
+      if (!Number.isInteger(botIndex) || botIndex < 0 || botIndex >= room.players.length) return sendError(ws, '无效的座位编号');
+      requestBotTakeover(ws, room, ws.clientId, player.name, botIndex);
       return;
     }
   
@@ -2075,10 +2242,12 @@ function attachRealtimeGame(server) {
     wss,
     rooms,
     timing,
+    aiLearning,
     stop() {
       clearInterval(wsHeartbeatTimer);
       clearInterval(autoTakeoverTimer);
       clearInterval(roomSweepTimer);
+      aiLearning.shutdown();
       messageLimiter.stop();
       wss.close();
     }

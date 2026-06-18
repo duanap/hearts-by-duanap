@@ -7686,3 +7686,299 @@ body.force-landscape.screen-portrait .last-trick-card {
   height: 48px !important;
   font-size: 13px !important;
 }
+
+/* ===== v1.4.28 mobile landscape readability and animal-island panels ===== */
+body.screen-mobile.screen-landscape .receive-toast {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px)) !important;
+  width: max-content !important;
+  max-width: min(620px, calc(100vw - 24px)) !important;
+  max-height: min(24vh, 74px) !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow: auto !important;
+  overflow-wrap: anywhere !important;
+  transform: translateX(-50%) !important;
+  z-index: 3000 !important;
+}
+
+body.force-landscape.screen-portrait .receive-toast {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: max-content !important;
+  max-width: min(620px, calc(var(--game-width, 100dvh) - 24px)) !important;
+  max-height: 72px !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow: auto !important;
+  overflow-wrap: anywhere !important;
+  transform: translate(-50%, -50%) rotate(90deg) translateY(calc(var(--game-height, 100dvw) * .34)) !important;
+  transform-origin: center center !important;
+  z-index: 3000 !important;
+}
+
+body.screen-mobile.screen-landscape .hand-tip,
+body.force-landscape.screen-portrait .hand-tip {
+  max-width: min(560px, calc(var(--game-width, 100vw) - 24px)) !important;
+  padding: 8px 13px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack {
+  width: 92px !important;
+  height: 68px !important;
+  z-index: 11 !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack.west,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack.west {
+  left: 20px !important;
+  top: calc(50% + 76px) !important;
+  transform: none !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack.east,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack.east {
+  right: 20px !important;
+  top: calc(50% + 76px) !important;
+  transform: none !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack.north,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack.north {
+  left: calc(50% - 88px) !important;
+  top: 34px !important;
+  transform: none !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack .stack-card,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack .stack-card {
+  border-radius: 8px !important;
+  border-width: 2px !important;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255,255,255,.48), transparent 18%),
+    repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,.22) 10px 12px),
+    linear-gradient(145deg, #44b96a, #7fdaa0) !important;
+  box-shadow: 0 6px 12px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.36) !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack .card-back::before,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack .card-back::before {
+  inset: 6px !important;
+  border-color: rgba(255,255,255,.58) !important;
+}
+
+body.screen-mobile.screen-landscape .opponent-hand.compact-stack .card-back::after,
+body.force-landscape.screen-portrait .opponent-hand.compact-stack .card-back::after {
+  font-size: 20px !important;
+  color: rgba(255,255,255,.86) !important;
+}
+
+body.screen-mobile.screen-landscape .player-hand {
+  height: 118px !important;
+  width: min(820px, 82vw) !important;
+}
+
+body.screen-mobile.screen-landscape .player-hand .card:not(.small),
+body.force-landscape.screen-portrait .player-hand .card:not(.small) {
+  width: 46px !important;
+  height: 66px !important;
+  padding: 5px !important;
+}
+
+body.screen-mobile.screen-landscape .player-hand .card:not(.small) .card-corner,
+body.force-landscape.screen-portrait .player-hand .card:not(.small) .card-corner {
+  font-size: 11px !important;
+  line-height: 10px !important;
+  min-width: 12px !important;
+}
+
+body.screen-mobile.screen-landscape .player-hand .card:not(.small) .card-pip,
+body.force-landscape.screen-portrait .player-hand .card:not(.small) .card-pip {
+  font-size: 25px !important;
+}
+
+.table-info-card,
+.result-card {
+  color: #5e4129 !important;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,.72), transparent 18%),
+    radial-gradient(circle at 86% 18%, rgba(255,236,173,.50), transparent 16%),
+    linear-gradient(145deg, rgba(255, 251, 232, .99), rgba(245, 219, 164, .99)) !important;
+  border: 3px solid rgba(123, 82, 43, .20) !important;
+  box-shadow: 0 18px 0 rgba(123, 82, 43, .14), 0 28px 58px rgba(56, 70, 40, .26), inset 0 2px 0 rgba(255,255,255,.76) !important;
+  text-align: left !important;
+}
+
+.table-info-card .modal-title,
+.result-card .modal-title,
+.last-trick-title,
+.round-table-card .modal-title {
+  color: #6b4529 !important;
+  text-align: left !important;
+}
+
+.table-info-card .modal-subtitle,
+.result-card .modal-subtitle,
+.round-table-card .modal-subtitle {
+  color: rgba(94, 65, 41, .76) !important;
+  text-align: left !important;
+}
+
+.last-trick-stat-row,
+.round-pass-pill {
+  color: #6b4529 !important;
+  background: rgba(255,255,255,.45) !important;
+  border-color: rgba(123, 82, 43, .18) !important;
+}
+
+.last-trick-cell,
+.round-table-view td,
+.result-player-card {
+  color: #5e4129 !important;
+  background: rgba(255,255,255,.42) !important;
+  border-color: rgba(123, 82, 43, .16) !important;
+}
+
+.last-trick-cell.is-winner,
+.round-table-view tr:hover td,
+.result-player-card.is-winner {
+  background: linear-gradient(145deg, rgba(255, 226, 118, .55), rgba(139, 211, 110, .30)) !important;
+  border-color: rgba(123, 82, 43, .24) !important;
+}
+
+.last-trick-name,
+.last-trick-role,
+.last-trick-meta,
+.last-trick-summary,
+.round-player-name,
+.round-player-meta,
+.round-cell-title,
+.round-pass-muted,
+.log-list,
+.log-table,
+.log-table th,
+.log-table td,
+.result-player-name,
+.result-player-sub,
+.result-keep-going,
+.result-score-pill span {
+  color: #5e4129 !important;
+}
+
+.log-list,
+.round-table-wrap {
+  background: rgba(255,255,255,.40) !important;
+  border-color: rgba(123, 82, 43, .18) !important;
+}
+
+.round-table-view th {
+  color: #6b4529 !important;
+  background: rgba(255, 239, 188, .96) !important;
+}
+
+.round-mini-card,
+.last-trick-card {
+  background: linear-gradient(145deg, #fffdf1, #f1ddb0) !important;
+  color: #2d2419 !important;
+  border-color: rgba(123, 82, 43, .24) !important;
+}
+
+.round-mini-card.red,
+.last-trick-card.red {
+  color: #c93542 !important;
+}
+
+.result-score-pill {
+  color: #5e4129 !important;
+  background: rgba(255,255,255,.46) !important;
+}
+
+.result-card .result-score-board {
+  max-height: min(52dvh, 480px) !important;
+  overflow-y: auto !important;
+  padding-right: 4px !important;
+}
+
+.result-score-pill strong,
+.result-score-pill.total strong,
+.result-badge,
+.round-player-avatar {
+  color: #6b4529 !important;
+}
+
+.result-badge {
+  background: rgba(255, 226, 118, .92) !important;
+}
+
+body.screen-mobile.screen-landscape .result-card,
+body.force-landscape.screen-portrait .result-card {
+  display: flex !important;
+  flex-direction: column !important;
+  width: min(760px, calc(var(--game-width, 100vw) - 10px)) !important;
+  height: calc(var(--game-height, 100dvh) - 10px) !important;
+  max-height: calc(var(--game-height, 100dvh) - 10px) !important;
+  padding: 8px 10px !important;
+  border-radius: 18px !important;
+  overflow: hidden !important;
+}
+
+body.screen-mobile.screen-landscape .result-header,
+body.force-landscape.screen-portrait .result-header,
+body.screen-mobile.screen-landscape .result-actions,
+body.force-landscape.screen-portrait .result-actions {
+  flex: 0 0 auto !important;
+}
+
+body.screen-mobile.screen-landscape .result-scroll-body,
+body.force-landscape.screen-portrait .result-scroll-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  margin-top: 6px !important;
+  padding-right: 2px !important;
+}
+
+body.screen-mobile.screen-landscape .result-card .result-score-board,
+body.force-landscape.screen-portrait .result-card .result-score-board {
+  max-height: calc(var(--game-height, 100dvh) - 132px) !important;
+}
+
+body.screen-mobile.screen-landscape .result-card .modal-actions,
+body.force-landscape.screen-portrait .result-card .modal-actions {
+  margin-top: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+body.screen-mobile.screen-landscape .result-header .modal-title,
+body.force-landscape.screen-portrait .result-header .modal-title {
+  font-size: clamp(16px, 4.2dvh, 21px) !important;
+  margin: 0 38px 2px 0 !important;
+}
+
+body.screen-mobile.screen-landscape .result-header .modal-subtitle,
+body.force-landscape.screen-portrait .result-header .modal-subtitle {
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  margin-bottom: 0 !important;
+}
+
+body.screen-mobile.screen-landscape .result-player-card,
+body.force-landscape.screen-portrait .result-player-card {
+  padding: 6px 7px !important;
+  gap: 5px !important;
+}

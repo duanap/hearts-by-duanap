@@ -41,6 +41,7 @@
     openRoundTableModal,
     openRulesModal,
     openSettingsModal,
+    openTakeoverApprovalPrompt,
     openVersionLogModal,
     recordPong,
     saveNickname,
@@ -73,6 +74,7 @@
   import type { InteractionMenuAnchor, InteractionType, ServerMessage } from "./types/messages";
   import type { InteractionItem } from "./utils/interactions";
   import { explainIllegalCard } from "./utils/gameState";
+  import { sortHand } from "./utils/cards";
 
   let roomModalOpen = false;
   let mounted = false;
@@ -130,6 +132,18 @@
         handleLeftRoom(message);
         openRoomModal();
         return;
+      case "takeoverRequested":
+        setRoomBusy(null);
+        toast(`已提交接管 AI「${message.botName}」的请求，等待房主批准。`, "info");
+        return;
+      case "takeoverRejected":
+        setRoomBusy(null);
+        toast(message.message || "房主拒绝了接管请求。", "warning");
+        return;
+      case "takeoverApprovalNeeded":
+        openTakeoverApprovalPrompt(message.nickname, message.botName);
+        sound("turn");
+        return;
       case "error":
         handleError(message);
         sound("error");
@@ -158,11 +172,13 @@
     }
     syncLayoutState(false);
     const cleanupLayoutListeners = listenLayoutChanges(syncLayoutState);
+    window.addEventListener("keydown", handleKeyboardShortcut);
     connect();
     if (!currentGameState().roomId) openRoomModal();
     mounted = true;
     window.setTimeout(maybeShowLandscapePrompt, 320);
     return () => {
+      window.removeEventListener("keydown", handleKeyboardShortcut);
       cleanupLayoutListeners();
       wsClient.disconnect();
     };
@@ -253,9 +269,30 @@
     closeModal("aiPrompt");
   }
 
-  function confirmAiPrompt(event: CustomEvent<"fill" | "takeover">) {
+  function approveTakeover() {
+    setAiBusy("approveTakeover");
+    if (!wsClient.approveTakeover()) {
+      setAiBusy(null);
+      toast("尚未连接服务端，正在尝试重连。", "warning");
+      return;
+    }
+    closeAiPrompt();
+  }
+
+  function rejectTakeover() {
+    setAiBusy("rejectTakeover");
+    if (!wsClient.rejectTakeover()) {
+      setAiBusy(null);
+      toast("尚未连接服务端，正在尝试重连。", "warning");
+      return;
+    }
+    closeAiPrompt();
+  }
+
+  function confirmAiPrompt(event: CustomEvent<"fill" | "takeover" | "approveTakeover">) {
     if (event.detail === "fill") fillBotsAndStart();
-    else takeoverOffline();
+    else if (event.detail === "takeover") takeoverOffline();
+    else approveTakeover();
     closeAiPrompt();
   }
 
@@ -329,6 +366,65 @@
     openRoundTableModal();
   }
 
+  function isKeyboardInputTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    return Boolean(target.closest("input, textarea, select, button, a, [contenteditable='true']"));
+  }
+
+  function handleKeyboardShortcut(event: KeyboardEvent) {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || isKeyboardInputTarget(event.target)) return;
+    const state = currentGameState();
+    const key = event.key.toLowerCase();
+    if (state.activeModal) {
+      if (state.activeModal === "roundTable" && key === "t") {
+        event.preventDefault();
+        closeRoundTableModal();
+      }
+      return;
+    }
+
+    if (key === " " || key === "enter") {
+      event.preventDefault();
+      handleCenterAction();
+      return;
+    }
+
+    if (key === "l") {
+      event.preventDefault();
+      if (state.lastTrickOpen) closeLastTrick();
+      else handleOpenLastTrick();
+      return;
+    }
+
+    if (key === "t") {
+      event.preventDefault();
+      if (state.activeModal === "roundTable") closeRoundTableModal();
+      else handleOpenRoundTable();
+      return;
+    }
+
+    if (/^[1-9]$/.test(key)) {
+      const index = Number(key) - 1;
+      const card = sortHand(state.players[0]?.hand || [])[index];
+      if (card) {
+        event.preventDefault();
+        handleCardId(card.id);
+      }
+      return;
+    }
+
+    if (state.phase === "pass") {
+      const passIndex = { q: 0, w: 1, e: 2, r: 3 }[key as "q" | "w" | "e" | "r"];
+      if (passIndex != null) {
+        const card = sortHand(state.players[0]?.hand || [])[passIndex];
+        if (card) {
+          event.preventDefault();
+          selectForPass(card.id);
+        }
+      }
+    }
+  }
+
   function handleOpenInteraction(event: CustomEvent<{ viewIndex: number; anchor: InteractionMenuAnchor }>) {
     openInteractionPanel(event.detail.viewIndex, event.detail.anchor, "target");
   }
@@ -372,9 +468,8 @@
     closeRoundTableModal();
   }
 
-  function handleCardClick(event: CustomEvent<string>) {
+  function handleCardId(cardId: string) {
     const state = currentGameState();
-    const cardId = event.detail;
     const card = state.players[0]?.hand.find(item => item.id === cardId) || null;
 
     if (state.phase === "pass") {
@@ -415,6 +510,10 @@
     }
 
     showHandTip("当前不能操作手牌。", 1700, "info");
+  }
+
+  function handleCardClick(event: CustomEvent<string>) {
+    handleCardId(event.detail);
   }
 
   async function toggleLandscapeMode() {
@@ -482,6 +581,7 @@
   state={$gameState}
   on:close={closeAiPrompt}
   on:confirm={confirmAiPrompt}
+  on:reject={rejectTakeover}
 />
 
 <ConnectionModal

@@ -6,14 +6,15 @@
 
   const dispatch = createEventDispatcher<{
     close: void;
-    confirm: "fill" | "takeover";
+    confirm: "fill" | "takeover" | "approveTakeover";
+    reject: void;
   }>();
 
   $: open = state.modals.aiPrompt && Boolean(state.aiPromptAction);
   $: busy = state.aiBusy === state.aiPromptAction;
 
   function confirm() {
-    if (state.aiPromptAction === "fill" || state.aiPromptAction === "takeover") {
+    if (state.aiPromptAction === "fill" || state.aiPromptAction === "takeover" || state.aiPromptAction === "approveTakeover") {
       dispatch("confirm", state.aiPromptAction);
     }
   }
@@ -27,7 +28,11 @@
     <div class="modal-subtitle" id="aiPromptSubtitle">{state.aiPromptSubtitle || "有玩家离线或退出，房主可选择让 AI 接管，避免牌局卡住。"}</div>
     <div class="modal-actions">
       <button class="action-btn" id="aiPromptConfirmBtn" disabled={busy || !state.connected} on:click={confirm}>{busy ? "发送中" : state.aiPromptButton || "确认"}</button>
-      <button class="action-btn secondary" id="aiPromptLaterBtn" on:click={() => dispatch("close")}>稍后处理</button>
+      {#if state.aiPromptAction === "approveTakeover"}
+        <button class="action-btn danger" id="aiPromptRejectBtn" disabled={state.aiBusy === "rejectTakeover" || !state.connected} on:click={() => dispatch("reject")}>{state.aiBusy === "rejectTakeover" ? "发送中" : "拒绝"}</button>
+      {:else}
+        <button class="action-btn secondary" id="aiPromptLaterBtn" on:click={() => dispatch("close")}>稍后处理</button>
+      {/if}
     </div>
   </div>
 </div>

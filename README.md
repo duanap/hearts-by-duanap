@@ -1,6 +1,6 @@
 # 红心大战 Hearts Online
 
-基于 **Svelte + Vite + TypeScript + Node.js + WebSocket** 的联机红心大战。服务端负责房间、发牌、传牌、出牌校验、计分、AI 补位和断线处理；前端负责牌桌 UI、动画、音效、互动和移动端横屏体验。
+基于 **Svelte + Vite + TypeScript + Node.js + WebSocket** 的联机红心大战。服务端负责房间、发牌、传牌、出牌校验、计分、AI 补位、AI 学习和断线处理；前端负责牌桌 UI、动画、音效、互动和移动端横屏体验。
 
 当前版本：`1.4.22`
 
@@ -23,6 +23,7 @@
 │   ├── env.js                        # 环境变量读取工具
 │   ├── staticFiles.js                # 静态资源与 /healthz
 │   ├── rateLimiter.js                # WebSocket 消息限流
+│   ├── aiLearning.js                 # AI 策略统计、持久化和权重训练
 │   └── realtimeGame.js               # 房间、规则、AI、WebSocket 协议
 ├── frontend/
 │   ├── vite.config.ts                # Svelte/Vite 构建配置
@@ -62,6 +63,7 @@ Browser / Android WebView
 server.js
   ├─ staticFiles.js  -> public/
   └─ realtimeGame.js -> ws room/game protocol
+       ├─ aiLearning.js
        ├─ rateLimiter.js
        └─ env.js
 
@@ -77,9 +79,11 @@ frontend/src
 - 4 位数字房间号，优先生成易记房号。
 - 4 人满员自动开始；人数不足时房主可 AI 补位。
 - 服务端统一发牌、传牌、出牌校验、判定和计分。
+- AI 会记录传牌、射月、防射月和回合结果，持久化到本地运行时数据并按样本自动微调出牌权重。
 - 支持断线重连、主动退出、房主解散、房主迁移。
-- 离线玩家可由房主设置 AI 接管；重连需要本机保存的 `reconnectToken`。
+- 离线玩家可由房主设置 AI 接管；重连需要本机保存的 `reconnectToken`；纯 AI 座位可由玩家申请接管，房主批准后生效。
 - 前端支持横屏提示、全屏、音效、动画、上一墩、查看牌桌、互动表情和特效。
+- 桌面键盘快捷键：`Space`/`Enter` 执行中间按钮动作，`1-9` 操作手牌，传牌阶段 `Q/W/E/R` 快选前四张，`L` 查看上一墩，`T` 查看牌桌。
 - 房间自动清理：默认全员离线 5 分钟解散，房间无活动 60 分钟解散。
 
 ## 环境要求

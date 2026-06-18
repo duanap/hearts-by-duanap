@@ -20,7 +20,7 @@ export type ModalKey =
   | "interaction";
 export type ToastType = "info" | "success" | "warning" | "error";
 export type RoomBusyAction = "create" | "join" | "leave" | "disband" | null;
-export type AiBusyAction = "fill" | "takeover" | null;
+export type AiBusyAction = "fill" | "takeover" | "approveTakeover" | "rejectTakeover" | null;
 export type InteractionType =
   | "emoji"
   | "flower"
@@ -299,6 +299,9 @@ export type ServerMessage =
   | { type: "roomCreated"; roomId: RoomCode; reconnectToken?: string }
   | { type: "roomClosed"; roomId?: RoomCode; message?: string }
   | { type: "leftRoom"; roomId?: RoomCode; message?: string }
+  | { type: "takeoverRequested"; roomId: RoomCode; botName: string }
+  | { type: "takeoverRejected"; roomId?: RoomCode; message?: string }
+  | { type: "takeoverApprovalNeeded"; roomId: RoomCode; nickname: string; botName: string; botIndex: number }
   | { type: "error"; message?: string };
 
 export type ClientMessage =
@@ -310,6 +313,9 @@ export type ClientMessage =
   | { type: "disbandRoom" }
   | { type: "fillBotsAndStart" }
   | { type: "takeoverOffline" }
+  | { type: "requestTakeover"; botIndex: number }
+  | { type: "approveTakeover" }
+  | { type: "rejectTakeover" }
   | { type: "startGame" }
   | { type: "passCards"; cards: string[] }
   | { type: "playCard"; cardId: string }

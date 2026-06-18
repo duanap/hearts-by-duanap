@@ -154,6 +154,18 @@ class WsClient {
     return this.send({ type: "takeoverOffline" });
   }
 
+  requestTakeover(botIndex: number): boolean {
+    return this.send({ type: "requestTakeover", botIndex });
+  }
+
+  approveTakeover(): boolean {
+    return this.send({ type: "approveTakeover" });
+  }
+
+  rejectTakeover(): boolean {
+    return this.send({ type: "rejectTakeover" });
+  }
+
   startGame(): boolean {
     return this.send({ type: "startGame" });
   }

@@ -877,6 +877,10 @@ export function maybePromptAiTakeover(): void {
       };
     }
 
+    if (state.aiPromptAction === "approveTakeover" && state.modals.aiPrompt) {
+      return state;
+    }
+
     const leftPlayers = state.serverPlayers.filter(player => !player.isBot && player.leftRoom);
     const offlinePlayers = state.serverPlayers.filter(player => !player.isBot && !player.connected && !player.leftRoom);
     let action: AiBusyAction = null;
@@ -925,6 +929,19 @@ export function maybePromptAiTakeover(): void {
       modals: { ...state.modals, aiPrompt: true }
     };
   });
+}
+
+export function openTakeoverApprovalPrompt(nickname: string, botName: string): void {
+  gameState.update(state => ({
+    ...state,
+    lastAiPromptKey: `${state.roomId}:approveTakeover:${nickname}:${botName}:${Date.now()}`,
+    aiPromptAction: "approveTakeover",
+    aiPromptTitle: "AI 座位接管请求",
+    aiPromptSubtitle: `${nickname || "玩家"} 想接管 AI「${botName || "座位"}」的当前牌局，需要房主批准后才会生效。`,
+    aiPromptButton: "批准接管",
+    activeModal: "aiPrompt",
+    modals: { ...state.modals, aiPrompt: true }
+  }));
 }
 
 export interface SendInteractionOptions {
